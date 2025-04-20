@@ -7,7 +7,8 @@ public class PlatformController : MonoBehaviour
     [Header("Våningsinställningar")]
     [SerializeField] private Transform[] floorPositions; // Positioner för varje våning
     [SerializeField] private float waitTimeAtFloor = 5f; // Tid att vänta vid varje våning i sekunder
-    [SerializeField] private float moveSpeed = 2f; // Hastighet för hissen
+    [SerializeField] private float moveSpeedDown = 2f; // Hastighet nedåt
+    [SerializeField] private float moveSpeedUp = 4f; // Hastighet uppåt (snabbare)
 
     [Header("Debug")]
     [SerializeField] private int currentFloorIndex = 0; // Nuvarande våning (0 = högst upp)
@@ -17,10 +18,10 @@ public class PlatformController : MonoBehaviour
 
     private void Start()
     {
-        // Börja med att placera hissen på översta våningen
+        // Kontrollera att vi har våningspositioner inställda
         if (floorPositions.Length > 0)
         {
-            transform.position = floorPositions[0].position;
+            // Notera: Vi låter MovePlatform() hantera startpositionen
             StartCoroutine(MovePlatform());
         }
         else
@@ -31,6 +32,24 @@ public class PlatformController : MonoBehaviour
 
     private IEnumerator MovePlatform()
     {
+        // Börja med att åka till floor 1 (index 0) direkt utan att stanna
+        isMoving = true;
+        currentFloorIndex = 0;
+        Vector3 targetPosition = floorPositions[currentFloorIndex].position;
+
+        while (Vector3.Distance(transform.position, targetPosition) > 0.01f)
+        {
+            transform.position = Vector3.MoveTowards(
+                transform.position,
+                targetPosition,
+                moveSpeedDown * Time.deltaTime
+            );
+            yield return null;
+        }
+
+        // Säkerställ att vi är exakt på målpositionen
+        transform.position = targetPosition;
+
         while (true) // Fortsätt i all oändlighet
         {
             // Vänta på nuvarande våning
@@ -60,73 +79,25 @@ public class PlatformController : MonoBehaviour
                 {
                     currentFloorIndex = 0;
                     isGoingDown = true;
-
-                    // Alternativ: Om du vill att den ska starta om från toppen istället för att vända
-                    // currentFloorIndex = 0;
-                    // isGoingDown = true;
                 }
             }
 
             // Flytta hissen till nästa våning
-            Vector3 targetPosition = floorPositions[currentFloorIndex].position;
+            targetPosition = floorPositions[currentFloorIndex].position;
+            float currentSpeed = isGoingDown ? moveSpeedDown : moveSpeedUp; // Använd olika hastigheter beroende på riktning
 
             while (Vector3.Distance(transform.position, targetPosition) > 0.01f)
             {
                 transform.position = Vector3.MoveTowards(
                     transform.position,
                     targetPosition,
-                    moveSpeed * Time.deltaTime
+                    currentSpeed * Time.deltaTime
                 );
                 yield return null; // Vänta till nästa frame
             }
 
             // Säkerställ att vi är exakt på målpositionen
             transform.position = targetPosition;
-        }
-    }
-
-    // Alternativ 1: Enklare version där hissen bara går uppifrån och ner
-    private IEnumerator MovePlatformSimple()
-    {
-        while (true)
-        {
-            // Starta från toppen
-            currentFloorIndex = 0;
-            transform.position = floorPositions[currentFloorIndex].position;
-
-            // Fortsätt nedåt genom alla våningar
-            for (int i = 0; i < floorPositions.Length; i++)
-            {
-                // Vänta på våningen
-                isMoving = false;
-                yield return new WaitForSeconds(waitTimeAtFloor);
-                isMoving = true;
-
-                // Om vi inte är på sista våningen, flytta nedåt
-                if (i < floorPositions.Length - 1)
-                {
-                    Vector3 targetPosition = floorPositions[i + 1].position;
-
-                    while (Vector3.Distance(transform.position, targetPosition) > 0.01f)
-                    {
-                        transform.position = Vector3.MoveTowards(
-                            transform.position,
-                            targetPosition,
-                            moveSpeed * Time.deltaTime
-                        );
-                        yield return null;
-                    }
-
-                    transform.position = targetPosition;
-                    currentFloorIndex = i + 1;
-                }
-            }
-
-            // Vänta på sista våningen
-            yield return new WaitForSeconds(waitTimeAtFloor);
-
-            // Teleportera tillbaka till toppen (eller du kan animera detta om du vill)
-            transform.position = floorPositions[0].position;
         }
     }
 
