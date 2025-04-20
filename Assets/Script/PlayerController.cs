@@ -18,12 +18,20 @@ public class PlayerController : MonoBehaviour
     private Transform cameraTransform;
     private float yVelocity;
 
+    private PlayerStatus playerStatus;
+
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
         if (controller == null)
         {
             Debug.LogError("CharacterController saknas på spelaren");
+        }
+
+        playerStatus = GetComponent<PlayerStatus>();
+        if (playerStatus == null)
+        {
+            Debug.LogError("PlayerStatus saknas på spelaren");
         }
 
         cameraTransform = Camera.main.transform;
@@ -36,14 +44,31 @@ public class PlayerController : MonoBehaviour
         Cursor.visible = false;
     }
 
+    // Håll koll på spelarens senaste y-hastighet för att beräkna fallskada
+    private float previousYVelocity;
+
     private void Update()
     {
         // Kolla om spelaren står på marken
+        bool wasGrounded = isGrounded;
         isGrounded = IsGrounded();
+
+        // Om spelaren nyss landat och föll snabbt
+        if (isGrounded && !wasGrounded && previousYVelocity < 0)
+        {
+            // Beräkna fallskada om spelaren har StatusController
+            if (playerStatus != null)
+            {
+                playerStatus.CheckFallDamage(previousYVelocity);
+            }
+        }
 
         // Hantera rörelse och hopp
         HandleMovement();
         HandleGravity();
+
+        // Spara nuvarande y-hastighet för nästa frame
+        previousYVelocity = velocity.y;
 
         // Applicera rörelse
         controller.Move(velocity * Time.deltaTime);
