@@ -11,6 +11,10 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private float maxHunger = 100f;
     [SerializeField] private float currentHunger;
     [SerializeField] private float hungerDecreaseRate = 0.3f;
+    [SerializeField] private float maxFrustration = 100f; // Ny variabel för frustration
+    [SerializeField] private float currentFrustration = 0f; // Ny variabel för frustration
+    [SerializeField] private float frustrationIncreaseRate = 0.5f; // Hastighet för frustrationökning
+    [SerializeField] private float frustrationDecreaseRate = 0.1f; // Hastighet för frustrationminskning
 
     [Header("Beteende")]
     [SerializeField] private float detectionRange = 10f; // Hur långt fienden kan upptäcka spelaren
@@ -22,6 +26,7 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private float minPatrolWaitTime = 1f; // Min väntetid mellan patrullpunkter
     [SerializeField] private float maxPatrolWaitTime = 4f; // Max väntetid mellan patrullpunkter
     [SerializeField] private float patrolRadius = 10f; // Maximal radie för patrullpunkter
+    [SerializeField] private float frustrationThreshold = 80f; // Tröskelvärde för när frustration påverkar beteende
 
     [Header("Floor Detection")]
     [SerializeField] private Transform floorCheck; // Punkt för att detektera vilken våning fienden är på
@@ -31,6 +36,7 @@ public class EnemyController : MonoBehaviour
     [SerializeField] private AudioClip attackSound;
     [SerializeField] private AudioClip hurtSound;
     [SerializeField] private AudioClip deathSound;
+    [SerializeField] private AudioClip frustratedSound; // Nytt ljud för när fienden är frustrerad
 
     // Privata variabler
     private NavMeshAgent agent;
@@ -45,6 +51,7 @@ public class EnemyController : MonoBehaviour
     private bool isWaitingAtPatrolPoint = false;
     private Vector3 startPosition;
     private Vector3 currentPatrolTarget;
+    private float frustrationSoundTimer = 0f; // Timer för frustrations-ljud
 
     // Tillstånd för AI
     private enum EnemyState
@@ -53,7 +60,8 @@ public class EnemyController : MonoBehaviour
         Chase,
         Attack,
         Eat,
-        Hungry
+        Hungry,
+        Frustrated // Nytt tillstånd för frustration
     }
     private EnemyState currentState = EnemyState.Patrol;
 
@@ -81,6 +89,7 @@ public class EnemyController : MonoBehaviour
         // Initiera hälsa och hunger
         currentHealth = maxHealth;
         currentHunger = maxHunger;
+        currentFrustration = 0f; // Initiera frustration till 0
 
         // Konfigurera NavMeshAgent
         if (agent != null)
@@ -105,6 +114,9 @@ public class EnemyController : MonoBehaviour
         // Uppdatera hunger
         UpdateHunger();
 
+        // Uppdatera frustration
+        UpdateFrustration();
+
         // Kontrollera om spelaren är inom detekteringsavstånd
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
         isPlayerInRange = distanceToPlayer <= detectionRange;
@@ -125,10 +137,48 @@ public class EnemyController : MonoBehaviour
         if (currentHunger < 0)
             currentHunger = 0;
 
-        // Om hunger är väldigt låg, ta skada
+        // Om hunger är väldigt låg, ta skada och öka frustration
         if (currentHunger <= 5f)
         {
             TakeDamage(0.5f * Time.deltaTime);
+            // Öka frustration snabbare när hungrig
+            currentFrustration += frustrationIncreaseRate * 2f * Time.deltaTime;
+        }
+        else if (currentHunger <= 30f)
+        {
+            // Öka frustration när hungrig
+            currentFrustration += frustrationIncreaseRate * Time.deltaTime;
+        }
+    }
+
+    private void UpdateFrustration()
+    {
+        // Hantera frustrationsnivå baserat på situation
+
+        // Minska frustration över tid om fienden är mätt
+        if (currentHunger > 60f)
+        {
+            currentFrustration -= frustrationDecreaseRate * Time.deltaTime;
+        }
+
+        // Öka frustration om fienden ser spelaren men inte kan nå den
+        if (isPlayerInRange && !CheckIfOnSameFloor())
+        {
+            currentFrustration += frustrationIncreaseRate * 0.5f * Time.deltaTime;
+        }
+
+        // Håll frustration inom gränser (0-100)
+        currentFrustration = Mathf.Clamp(currentFrustration, 0f, maxFrustration);
+
+        // Spela frustrations-ljud periodvis när frustrationen är hög
+        if (currentFrustration >= 80f)
+        {
+            frustrationSoundTimer -= Time.deltaTime;
+            if (frustrationSoundTimer <= 0f && frustratedSound != null)
+            {
+                audioSource.PlayOneShot(frustratedSound);
+                frustrationSoundTimer = Random.Range(5f, 10f); // Slumpmässig tid tills nästa ljud
+            }
         }
     }
 
@@ -136,6 +186,13 @@ public class EnemyController : MonoBehaviour
     {
         // Kontrollera om fienden är på samma våning som spelaren
         bool isOnSameFloor = CheckIfOnSameFloor();
+
+        // Prioritera frustrerat tillstånd om frustrationen är över tröskelvärdet
+        if (currentFrustration >= frustrationThreshold)
+        {
+            currentState = EnemyState.Frustrated;
+            return;
+        }
 
         // Prioritera att äta om hungern är låg och mat finns tillgänglig
         if (currentHunger < 30f && IsThereAnyFoodNearby())
@@ -224,6 +281,61 @@ public class EnemyController : MonoBehaviour
                     animator.SetBool("IsAttacking", false);
                 }
                 break;
+
+            case EnemyState.Frustrated:
+                // Frustrerat beteende - spring omkring slumpmässigt, attackera allt i närheten
+                BehaveFrustrated();
+                if (animator != null)
+                {
+                    animator.SetBool("IsChasing", true); // Använd jaga-animation för frustrerat tillstånd
+                    animator.SetBool("IsAttacking", false);
+                }
+                break;
+        }
+    }
+
+    private void BehaveFrustrated()
+    {
+        // Set högre hastighet för frustrerat tillstånd
+        agent.speed = moveSpeed * 1.2f;
+
+        // Om nära målet eller inget mål är satt, välj ny slumpmässig punkt
+        if (agent.remainingDistance < 0.5f || !agent.hasPath)
+        {
+            // Välj en slumpmässig riktning med större radie än patrullradien
+            Vector3 randomDirection = Random.insideUnitSphere * (patrolRadius * 1.5f);
+            randomDirection.y = 0;
+
+            // Sätt nästa punkt från nuvarande position (inte startposition)
+            Vector3 nextPoint = transform.position + randomDirection;
+            NavMeshHit hit;
+
+            // Säkerställ att punkten finns på NavMesh
+            if (NavMesh.SamplePosition(nextPoint, out hit, patrolRadius * 1.5f, NavMesh.AllAreas))
+            {
+                agent.SetDestination(hit.position);
+            }
+        }
+
+        // Attackera allt i närheten, inklusive förstörbara objekt
+        Collider[] colliders = Physics.OverlapSphere(transform.position, attackRange);
+        foreach (Collider collider in colliders)
+        {
+            // Attackera spelare om nära
+            if (collider.CompareTag("Player"))
+            {
+                AttackPlayer();
+                break;
+            }
+
+            // Attackera/förstör andra objekt om det finns någon mekanism för detta
+            // Du kan implementera förstörbara objekt här senare
+            // Exempel:
+            // DestructibleObject destructible = collider.GetComponent<DestructibleObject>();
+            // if (destructible != null)
+            // {
+            //     destructible.TakeDamage(attackDamage);
+            // }
         }
     }
 
@@ -314,6 +426,9 @@ public class EnemyController : MonoBehaviour
             audioSource.PlayOneShot(hurtSound);
         }
 
+        // Öka frustration när man tar skada
+        currentFrustration += damage * 0.5f;
+
         // Om hälsan når 0, dö
         if (currentHealth <= 0)
         {
@@ -374,6 +489,13 @@ public class EnemyController : MonoBehaviour
         if (currentHunger > maxHunger)
         {
             currentHunger = maxHunger;
+        }
+
+        // Minska frustration när man äter
+        currentFrustration -= foodValue * 0.5f;
+        if (currentFrustration < 0)
+        {
+            currentFrustration = 0;
         }
 
         // Spela ät-animation om sådan finns
@@ -513,5 +635,62 @@ public class EnemyController : MonoBehaviour
         // Rita patrullradie
         Gizmos.color = Color.blue;
         Gizmos.DrawWireSphere(startPosition, patrolRadius);
+    }
+
+    // Publika egenskaper och metoder för att få status och värden
+    public bool IsDead => isDead;
+
+    // Hämtar nuvarande hälsoprocent (0-1)
+    public float GetHealthPercentage()
+    {
+        return currentHealth / maxHealth;
+    }
+
+    // Hämtar nuvarande hungerprocent (0-1)
+    public float GetHungerPercentage()
+    {
+        return currentHunger / maxHunger;
+    }
+
+    // Hämtar nuvarande frustrationsprocent (0-1)
+    public float GetFrustrationPercentage()
+    {
+        return currentFrustration / maxFrustration;
+    }
+
+    // Hämtar max hälsa
+    public float GetMaxHealth()
+    {
+        return maxHealth;
+    }
+
+    // Hämtar nuvarande hälsa
+    public float GetCurrentHealth()
+    {
+        return currentHealth;
+    }
+
+    // Hämtar max hunger
+    public float GetMaxHunger()
+    {
+        return maxHunger;
+    }
+
+    // Hämtar nuvarande hunger
+    public float GetCurrentHunger()
+    {
+        return currentHunger;
+    }
+
+    // Hämtar max frustration
+    public float GetMaxFrustration()
+    {
+        return maxFrustration;
+    }
+
+    // Hämtar nuvarande frustration
+    public float GetCurrentFrustration()
+    {
+        return currentFrustration;
     }
 }
