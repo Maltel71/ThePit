@@ -15,8 +15,8 @@ public class PlatformController : MonoBehaviour
     [SerializeField] private int currentFloorIndex = 0; // Nuvarande våning (0 = högst upp)
     [SerializeField] private bool isMoving = false; // Om hissen rör sig eller väntar
 
-    // Sekvens av våningar att besöka (0, 1, 2, 3, 0, upprepas)
-    private readonly int[] floorSequence = new int[] { 0, 1, 2, 3, 0 };
+    // Sekvens av våningar att besöka
+    [SerializeField] private int[] floorSequence = new int[] { 0, 1, 2, 3, 0 };
     private int sequenceIndex = 0;
 
     private void Start()

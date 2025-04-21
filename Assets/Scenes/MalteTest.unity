@@ -1988,6 +1988,7 @@ MonoBehaviour:
   moveSpeedUp: 40
   currentFloorIndex: 0
   isMoving: 0
+  floorSequence: 0000000001000000020000000300000000000000
 --- !u!1 &887120896
 GameObject:
   m_ObjectHideFlags: 0
