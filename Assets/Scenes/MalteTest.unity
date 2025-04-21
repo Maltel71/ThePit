@@ -1319,7 +1319,7 @@ GameObject:
   m_Component:
   - component: {fileID: 357749257}
   m_Layer: 6
-  m_Name: FloorLevelPrefab (1)
+  m_Name: FloorLevelPrefab 2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1958,7 +1958,7 @@ Transform:
   m_GameObject: {fileID: 732054943}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 31.9, z: 0}
+  m_LocalPosition: {x: 0, y: 30, z: 0}
   m_LocalScale: {x: 5, y: 1, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1982,9 +1982,10 @@ MonoBehaviour:
   - {fileID: 1140662059}
   - {fileID: 1785703468}
   - {fileID: 1261249364}
-  waitTimeAtFloor: 4
-  moveSpeedDown: 4
-  moveSpeedUp: 20
+  waitTimeAtFloor: 2
+  waitTimeAtStartFloor: 6
+  moveSpeedDown: 20
+  moveSpeedUp: 40
   currentFloorIndex: 0
   isMoving: 0
 --- !u!1 &887120896
@@ -2228,7 +2229,7 @@ Transform:
   m_GameObject: {fileID: 1038723612}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 20.208, z: 2.005}
+  m_LocalPosition: {x: 0, y: 20, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2659,7 +2660,7 @@ Transform:
   m_GameObject: {fileID: 1140662058}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 9.939, z: 2.22}
+  m_LocalPosition: {x: 0, y: 10, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2888,7 +2889,7 @@ Transform:
   m_GameObject: {fileID: 1261249363}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 31.53, z: 2.005}
+  m_LocalPosition: {x: 0, y: 30, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2904,7 +2905,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1261709860}
   m_Layer: 6
-  m_Name: FloorLevelPrefab (2)
+  m_Name: FloorLevelPrefab 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3159,7 +3160,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1378608756}
   m_Layer: 6
-  m_Name: FloorLevelPrefab
+  m_Name: FloorLevelPrefab 3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3781,7 +3782,7 @@ Transform:
   m_GameObject: {fileID: 1785703467}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.24, z: 1.23}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4657,10 +4658,10 @@ SceneRoots:
   - {fileID: 223805917}
   - {fileID: 1443650140}
   - {fileID: 1057593496}
-  - {fileID: 1378608756}
-  - {fileID: 357749257}
-  - {fileID: 1261709860}
   - {fileID: 732054947}
+  - {fileID: 1261709860}
+  - {fileID: 357749257}
+  - {fileID: 1378608756}
   - {fileID: 1261249364}
   - {fileID: 1038723613}
   - {fileID: 1140662059}
