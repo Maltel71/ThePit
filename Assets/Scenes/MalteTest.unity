@@ -1431,7 +1431,7 @@ MonoBehaviour:
   maxHealth: 100
   currentHealth: 0
   enableFallDamage: 1
-  fallDamageThreshold: 60
+  fallDamageThreshold: 10
   fallDamageMultiplier: 5
   minFallDamage: 5
   maxFallDamage: 50

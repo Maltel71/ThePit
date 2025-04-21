@@ -1,4 +1,4 @@
-﻿ using UnityEngine;
+﻿using UnityEngine;
 #if ENABLE_INPUT_SYSTEM 
 using UnityEngine.InputSystem;
 #endif
@@ -59,6 +59,10 @@ namespace StarterAssets
         [Tooltip("What layers the character uses as ground")]
         public LayerMask GroundLayers;
 
+        [Header("Fallskada")]
+        [Tooltip("Om fallskada ska vara aktiverad")]
+        public bool EnableFallDamage = true;
+
         [Header("Cinemachine")]
         [Tooltip("The follow target set in the Cinemachine Virtual Camera that the camera will follow")]
         public GameObject CinemachineCameraTarget;
@@ -98,6 +102,11 @@ namespace StarterAssets
         private int _animIDFreeFall;
         private int _animIDMotionSpeed;
 
+        // Fallskadehantering
+        private bool _wasGrounded;
+        private float _previousVerticalVelocity;
+        private PlayerStatus _playerStatus;
+
 #if ENABLE_INPUT_SYSTEM 
         private PlayerInput _playerInput;
 #endif
@@ -130,12 +139,19 @@ namespace StarterAssets
             {
                 _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             }
+
+            // Hitta PlayerStatus-komponenten för fallskada
+            _playerStatus = GetComponent<PlayerStatus>();
+            if (_playerStatus == null && EnableFallDamage)
+            {
+                Debug.LogWarning("PlayerStatus-komponent saknas på spelaren. Fallskada kommer inte att fungera.");
+            }
         }
 
         private void Start()
         {
             _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
-            
+
             _hasAnimator = TryGetComponent(out _animator);
             _controller = GetComponent<CharacterController>();
             _input = GetComponent<StarterAssetsInputs>();
@@ -150,15 +166,48 @@ namespace StarterAssets
             // reset our timeouts on start
             _jumpTimeoutDelta = JumpTimeout;
             _fallTimeoutDelta = FallTimeout;
+
+            // Initialisera musläsning
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         private void Update()
         {
             _hasAnimator = TryGetComponent(out _animator);
 
+            // Spara tidigare tillstånd för fallskadeberäkning
+            _wasGrounded = Grounded;
+            _previousVerticalVelocity = _verticalVelocity;
+
             JumpAndGravity();
             GroundedCheck();
             Move();
+
+            // Kontrollera fallskada efter att ha uppdaterat grounded-status
+            if (EnableFallDamage && Grounded && !_wasGrounded && _previousVerticalVelocity < 0)
+            {
+                if (_playerStatus != null)
+                {
+                    _playerStatus.CheckFallDamage(_previousVerticalVelocity);
+                    Debug.Log($"Anropar CheckFallDamage med hastighet: {_previousVerticalVelocity}");
+                }
+            }
+
+            // Växla musläsning med Escape
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (Cursor.lockState == CursorLockMode.Locked)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
+                else
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible = false;
+                }
+            }
         }
 
         private void LateUpdate()

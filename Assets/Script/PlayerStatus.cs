@@ -237,6 +237,8 @@ public class PlayerStatus : MonoBehaviour
 
     public void CheckFallDamage(float impactVelocity)
     {
+        Debug.Log($"Fallhastighet: {impactVelocity}"); // Lägg till denna rad
+
         // Skippa fallskadekontroll om fallskada är inaktiverad
         if (!enableFallDamage)
             return;
