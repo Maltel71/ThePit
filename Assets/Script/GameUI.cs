@@ -43,7 +43,7 @@ public class GameUI : MonoBehaviour
             // Prenumerera på events för att uppdatera UI
             playerStatus.OnHealthChanged += UpdateHealthUI;
             playerStatus.OnHungerChanged += UpdateHungerUI;
-            playerStatus.OnPlayerDeath += ShowDeathScreen;
+            //playerStatus.OnPlayerDeath += ShowDeathScreen;
         }
         else
         {
@@ -197,7 +197,7 @@ public class GameUI : MonoBehaviour
         {
             playerStatus.OnHealthChanged -= UpdateHealthUI;
             playerStatus.OnHungerChanged -= UpdateHungerUI;
-            playerStatus.OnPlayerDeath -= ShowDeathScreen;
+            //playerStatus.OnPlayerDeath -= ShowDeathScreen;
         }
     }
 }

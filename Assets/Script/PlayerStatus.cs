@@ -11,7 +11,7 @@ public class PlayerStatus : MonoBehaviour
     public delegate void HungerChangedDelegate(float currentHunger, float maxHunger);
     public event HungerChangedDelegate OnHungerChanged;
 
-    public delegate void PlayerDeathDelegate();
+    public delegate void PlayerDeathDelegate(DeathReason reason);
     public event PlayerDeathDelegate OnPlayerDeath;
 
     [Header("Hälsa")]
@@ -36,9 +36,7 @@ public class PlayerStatus : MonoBehaviour
     [SerializeField] private float currentHunger;
     [SerializeField] private float hungerDecreaseRate = 0.5f; // Hur mycket hunger minskar per sekund
     [SerializeField] private float hungerDecreaseMultiplier = 1.5f; // Hunger minskar snabbare vid springing
-    [SerializeField] private float hungerDamageThreshold = 0f; // När spelaren börjar ta skada av hunger
     [SerializeField] private float hungerDamageRate = 2f; // Skada per sekund vid hunger
-    [SerializeField] private float hungerStaminaPenalty = 0.5f; // Minskning av max sprintfart när hungrig (0 = ingen effekt, 1 = kan inte springa alls)
 
     [Header("Ljud")]
     [SerializeField] private AudioClip damageSound;
@@ -47,13 +45,21 @@ public class PlayerStatus : MonoBehaviour
     [SerializeField] private AudioClip deathSound;
     [SerializeField] private AudioClip fallDamageSound;
 
+    // Dödsorsaker
+    public enum DeathReason
+    {
+        Health, // Död av skada
+        Hunger, // Död av svält
+        Fall    // Död av fallskada
+    }
+
     // Publika properties för UI-information
     public float CurrentHealth => currentHealth;
     public float MaxHealth => maxHealth;
     public float CurrentHunger => currentHunger;
     public float MaxHunger => maxHunger;
     public bool IsDead => isDead;
-    public bool IsHungry => currentHunger <= hungerDamageThreshold + 10f;
+    public bool IsHungry => currentHunger <= 10f;
     public bool IsLowHealth => currentHealth <= maxHealth * 0.3f;
 
     private CharacterController controller;
@@ -117,17 +123,24 @@ public class PlayerStatus : MonoBehaviour
 
         // Minska hunger över tid
         currentHunger -= currentHungerRate * Time.deltaTime;
-        currentHunger = Mathf.Max(0, currentHunger);
+
+        // Kontrollera om hungern når 0 (död av svält)
+        if (currentHunger <= 0)
+        {
+            currentHunger = 0;
+            Die(DeathReason.Hunger);
+            return;
+        }
 
         // Påverka spelarens sprintförmåga baserat på hunger
         UpdatePlayerStaminaBasedOnHunger();
 
-        // Ta skada om hunger är under tröskelvärdet
-        if (currentHunger <= hungerDamageThreshold)
-        {
-            TakeDamage(hungerDamageRate * Time.deltaTime, DamageType.Hunger);
+        // Meddela UI om hunger har ändrats
+        OnHungerChanged?.Invoke(currentHunger, maxHunger);
 
-            // Spela hungersljud periodvis
+        // Spela hungersljud periodvis när hungern är låg
+        if (currentHunger <= 10f)
+        {
             hungerSoundTimer -= Time.deltaTime;
             if (hungerSoundTimer <= 0f && hungerSound != null)
             {
@@ -135,9 +148,6 @@ public class PlayerStatus : MonoBehaviour
                 hungerSoundTimer = Random.Range(5f, 15f); // Slumpmässig tid tills nästa ljud
             }
         }
-
-        // Meddela UI om hunger har ändrats
-        OnHungerChanged?.Invoke(currentHunger, maxHunger);
     }
 
     private void UpdatePlayerStaminaBasedOnHunger()
@@ -149,7 +159,7 @@ public class PlayerStatus : MonoBehaviour
 
             // Påverka spelarens sprintförmåga baserat på hunger
             // Detta kan implementeras med en sprintmultiplikator i ThirdPersonController
-            // Exempel: playerController.SprintSpeedMultiplier = Mathf.Lerp(1.0f - hungerStaminaPenalty, 1.0f, hungerFactor);
+            // Exempel: playerController.SprintSpeedMultiplier = Mathf.Lerp(0.5f, 1.0f, hungerFactor);
         }
     }
 
@@ -198,9 +208,6 @@ public class PlayerStatus : MonoBehaviour
                     audioSource.PlayOneShot(fallDamageSound);
                 }
                 break;
-            case DamageType.Hunger:
-                // Hungerskada hanteras tyst
-                break;
             default:
                 if (damageSound != null && damage > 1f)
                 {
@@ -209,18 +216,28 @@ public class PlayerStatus : MonoBehaviour
                 break;
         }
 
+        // Begränsa hälsan till 0 som minimum
+        if (currentHealth < 0)
+        {
+            currentHealth = 0;
+        }
+
         // Meddela UI om hälsa har ändrats
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
 
-        // Kontrollera om spelaren har dött
+        // Kontrollera om spelaren har dött (hälsa = 0)
         if (currentHealth <= 0)
         {
-            Die();
+            DeathReason reason = (damageType == DamageType.Fall) ? DeathReason.Fall : DeathReason.Health;
+            Die(reason);
         }
     }
 
     public void Eat(float foodValue)
     {
+        if (isDead)
+            return;
+
         // Lägg till hunger
         currentHunger += foodValue;
         currentHunger = Mathf.Min(currentHunger, maxHunger);
@@ -237,8 +254,6 @@ public class PlayerStatus : MonoBehaviour
 
     public void CheckFallDamage(float impactVelocity)
     {
-        Debug.Log($"Fallhastighet: {impactVelocity}"); // Lägg till denna rad
-
         // Skippa fallskadekontroll om fallskada är inaktiverad
         if (!enableFallDamage)
             return;
@@ -259,8 +274,11 @@ public class PlayerStatus : MonoBehaviour
         }
     }
 
-    private void Die()
+    private void Die(DeathReason reason)
     {
+        if (isDead)
+            return;
+
         isDead = true;
 
         // Spela ljud
@@ -269,7 +287,21 @@ public class PlayerStatus : MonoBehaviour
             audioSource.PlayOneShot(deathSound);
         }
 
-        Debug.Log("Spelaren har dött!");
+        string deathMessage = "";
+        switch (reason)
+        {
+            case DeathReason.Health:
+                deathMessage = "Spelaren dog av skador!";
+                break;
+            case DeathReason.Hunger:
+                deathMessage = "Spelaren svalt ihjäl!";
+                break;
+            case DeathReason.Fall:
+                deathMessage = "Spelaren dog av fallskada!";
+                break;
+        }
+
+        Debug.Log(deathMessage);
 
         // Inaktivera spelarens rörelse
         if (playerController != null)
@@ -284,7 +316,7 @@ public class PlayerStatus : MonoBehaviour
         }
 
         // Meddela UI om spelardöd
-        OnPlayerDeath?.Invoke();
+        OnPlayerDeath?.Invoke(reason);
 
         // För enkelhets skull, laddar vi om scenen efter en fördröjning
         StartCoroutine(ReloadSceneAfterDelay(3f));

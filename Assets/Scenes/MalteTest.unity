@@ -1442,9 +1442,7 @@ MonoBehaviour:
   currentHunger: 0
   hungerDecreaseRate: 0.5
   hungerDecreaseMultiplier: 1.5
-  hungerDamageThreshold: 0
   hungerDamageRate: 2
-  hungerStaminaPenalty: 0.5
   damageSound: {fileID: 0}
   hungerSound: {fileID: 0}
   eatSound: {fileID: 0}
